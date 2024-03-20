@@ -1,36 +1,179 @@
-This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# Salesforce Create Case Example
 
 ## Getting Started
 
-First, run the development server:
+### From Scratch
+
+Clone this repository:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+git clone https://github.com/GeorgiyIzmailov/salesforce-api-example.git
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Setup dependencies:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+pnpm install
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/basic-features/font-optimization) to automatically optimize and load Inter, a custom Google Font.
+Copy the example env file to make a `.env.development.local` for local development.
 
-## Learn More
+```bash
+cp .env.example .env.development.local
+```
 
-To learn more about Next.js, take a look at the following resources:
+### Add to an existing project
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+If you'd like to add an API route to an existing Next.js project:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js/) - your feedback and contributions are welcome!
+1. Copy the files under `api/create-support-case` into your own API route.
+2. Install deps via `pnpm add @vercel/edge-config zod`
+3. Follow the rest of these instructions to get the `.env` variables you need
 
-## Deploy on Vercel
+## Create Salesforce connected application
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+1. Login to Salesforce
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/deployment) for more details.
+2. In the drop-down list of the account (in the upper-right corner), select **Setup**
+
+3. In the left-hand pane, go to **Apps > App Manager**
+
+4. Click on **New Connected App** button
+
+5. Fill the following required fields under **Basic Information:**
+
+   - **Connected App Name**
+   - **API name**
+   - **Contact Email**
+
+6. Go to **API (Enable OAuth Settings)**, and select **Enable OAuth Settings**
+
+   - In the **Callback URL** field, enter - `https://login.salesforce.com/`
+   - In the **Selected OAuth Scopes** field, select:
+     - **Manage user data via APis (api)**
+     - **Perform requests on your behalf at any time (refresh token, offline access)**
+
+7. Click the **Add** button
+
+8. Click the **Save** button to save the new Connected App
+
+### Get the Consumer Key and Secret
+
+1. In the **App Manager** list, find the App that you just created, and then click **View**.
+
+2. Click on **Manage Consumer Details** button (verify if necessary)
+
+3. Copy and paste the **Consumer Key** and **Consumer Secret** environment variablesЖ:
+
+```bash
+SALESFORCE_CONSUMER_KEY="<YOUR_CONSUMER_KEY>"
+SALESFORCE_CONSUMER_SECRET="<YOUR_CONSUMER_SECRET>"
+```
+
+### Get a Security Token
+
+To obtain **Security Token:**
+
+1. Click on the profile icon in the upper right corner
+2. Click on **Settings** > **My Personal Information** (on left side) > **Reset My Security Token**
+3. Click on **Reset My Security Token** button
+4. You will receive a mail with **Security Token**
+5. Add the **Security Token** to the environment variables:
+
+```bash
+SALESFORCE_SECURITY_TOKEN="<YOUR_SECURITY_TOKEN>"
+```
+
+## Salesforce Access Tokens
+
+Salesforce [access tokens](https://developer.salesforce.com/docs/atlas.en-us.chatterapi.meta/chatterapi/intro_oauth_tokens.htm) obtained through client credentials (authentication between services) expire after a certain amount of time (this depends on the timeout value set in **Session Settings**). To avoid getting a new access token with every request, we will use Vercel's Edge Config to cache the last access token, which is optimized for scenarios with many read operations and few write operations.
+
+### Create Edge Config Store
+
+Create an Edge Config Store instance for your project. See [here](https://vercel.com/docs/storage/edge-config/get-started#quickstart).
+
+Once created, copy the `ID` of the Edge Config Store and add it as an env variable:
+
+```
+EDGE_CONFIG_ID="<EDGE_CONFIG_ID>"
+```
+
+Creating an Edge Config Store will also automatically create an `EDGE_CONFIG` env variable in your Vercel project. This is used for reading from the Store using the `@vercel/edge-config` SDK.
+
+For local development, you can visit your project's **Settings** > **Environment Variables** and copy it.
+
+Set it as an env variable:
+
+```
+EDGE_CONFIG="<EDGE_CONFIG>"
+```
+
+### Vercel API Access Token
+
+Next, create a Vercel API access token. See [here](https://vercel.com/docs/rest-api#creating-an-access-token). This is used to write to the Edge Config. Set the scope to the Vercel team you'd like it to apply to.
+
+Add it as env variable:
+
+```
+VER_API_ACCESS_TOKEN="<VER_API_ACCESS_TOKEN>"
+```
+
+Lastly, set the Vercel Team ID for where your project is located. You can find this under **Settings** under your Team in the [Vercel dashboard](https://vercel.com)
+
+```
+VER_TEAM_ID="<VER_TEAM_ID>"
+```
+
+## Inkeep Preview URL (optional)
+
+If you'd like to attach a link to the Inkeep Dashboard view of the AI-chat for reference, then set the following:
+
+```
+INKEEP_CHAT_PREVIEW_ROOT=https://portal.inkeep.com/<ORG_ALIAS>/projects/<PROJECT_ID>/chat/sandbox
+```
+
+This will be added as an internal-facing note to the supprot case.
+
+## Run locally
+
+```
+pnpm dev
+```
+
+## API Routes
+
+`/api/create-support-case` - Create a new case/ticket in your inbox.
+
+See the [Salesforce Create Case API](https://developer.salesforce.com/docs/atlas.en-us.object_reference.meta/object_reference/sforce_api_objects_case.htm) for full customization.
+
+### Example Request
+
+Note that the request is generated by your client side, please validate that the types and request body align.
+
+There's an example Zod validation and types in `api/create-support-ticket/requestSchemaValidation.ts`. Validation should be optimistic.
+
+```JSON
+{
+  "formDetails": {
+    "firstName": "John",
+    "email": "j@domain.com",
+    "additionalDetails": "Would like to change my password, please."
+  },
+  "chatSession": {
+    "messages": [
+      {
+        "role": "user",
+        "content": "How do I change my password?"
+      },
+      {
+        "role": "assistant",
+        "content": "Sorry, I wasn't able to find information about that. Please reach out to support."
+      }
+    ],
+    "chatSessionId": "12345"
+  },
+  "client": {
+    "currentUrl": "https://example.com/help"
+  }
+}
+```
