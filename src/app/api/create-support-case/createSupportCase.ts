@@ -5,7 +5,6 @@ import {
 } from "./requestSchemaValidation";
 
 const salesforce_domain = process.env.SALESFORCE_DOMAIN;
-const salesforce_access_token = process.env.SALESFORCE_ACCESS_TOKEN;
 
 function formatItem(label: string, content: string | undefined | null): string {
   return content
@@ -39,13 +38,13 @@ function formatChatHistory(messages: Message[] | undefined | null): string {
   return formattedHistory;
 }
 
-export async function createSupportCase(body: CreateCaseRequestBody) {
+export async function createSupportCase(
+  body: CreateCaseRequestBody,
+  accessToken: string
+) {
   const { formDetails, chatSession, client } = body;
 
-  if (!salesforce_domain || !salesforce_access_token)
-    throw new Error(
-      "SALESFORCE_DOMAIN or SALESFORCE_ACCESS_TOKEN is undefined"
-    );
+  if (!salesforce_domain) throw new Error("SALESFORCE_DOMAIN is undefined");
 
   const hasInitialMessage = chatSession && chatSession.messages.length > 0;
   const subject = hasInitialMessage
@@ -88,7 +87,7 @@ export async function createSupportCase(body: CreateCaseRequestBody) {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${salesforce_access_token}`, // Include Basic Auth header
+        Authorization: `Bearer ${accessToken}`, // Include Basic Auth header
       },
       body: JSON.stringify(data),
     }
